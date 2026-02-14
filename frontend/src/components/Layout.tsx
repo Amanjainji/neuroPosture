@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, Camera, Wifi, Dumbbell, Settings, LayoutDashboard, LogOut, User } from 'lucide-react'
+import { Activity, Camera, Wifi, Dumbbell, Settings, LayoutDashboard, LogOut, User, Utensils } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '../context/AuthContext'
 
@@ -20,6 +20,7 @@ function Footer() {
 const nav = [
   { path: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/app/profile', label: 'Profile', icon: User },
+  { path: '/app/diet', label: 'Diet Plan', icon: Utensils },
   { path: '/app/wearable', label: 'Wearable', icon: Wifi },
   { path: '/app/webcam', label: 'Posture Scan', icon: Camera },
   { path: '/app/coach', label: 'AI Coach', icon: Dumbbell },

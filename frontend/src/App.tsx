@@ -1,17 +1,18 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
-import ProtectedRoute from './components/ProtectedRoute'
-import Layout from './components/Layout'
-import Landing from './pages/Landing'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Wearable from './pages/Wearable'
-import WebcamPosture from './pages/WebcamPosture'
-import Coach from './pages/Coach'
-import Devices from './pages/Devices'
-import Settings from './pages/Settings'
-import Profile from './pages/Profile'
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Wearable from "./pages/Wearable";
+import WebcamPosture from "./pages/WebcamPosture";
+import Coach from "./pages/Coach";
+import Devices from "./pages/Devices";
+import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import DietPlan from "./pages/DietPlan";
 
 export default function App() {
   return (
@@ -100,8 +101,18 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/app/diet"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <DietPlan />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
-  )
+  );
 }

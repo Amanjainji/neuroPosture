@@ -18,6 +18,15 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    bmi: Optional[float] = None
+    occupation: Optional[str] = None
+    previous_injuries: Optional[list] = None  # e.g. ["Lower Back Pain", "Knee Injury"]
 
 
 class SettingsUpdate(BaseModel):

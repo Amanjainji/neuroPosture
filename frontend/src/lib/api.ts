@@ -85,8 +85,33 @@ export function loginUser(email: string, name: string): Promise<{ email: string;
     { method: 'POST', body: JSON.stringify({ email, name }), signal: controller.signal }
   ).finally(() => clearTimeout(timeoutId))
 }
-export const getUserProfile = () => fetchApiWithAuth<{ email: string; name: string; settings?: Record<string, string> }>('/users/me')
-export const updateUserProfile = (data: { name?: string }) => patchApiWithAuth<{ email: string; name: string }>('/users/me', data)
+export type ProfilePayload = {
+  name?: string
+  full_name?: string
+  phone?: string
+  age?: number
+  gender?: string
+  height_cm?: number
+  weight_kg?: number
+  bmi?: number
+  occupation?: string
+  previous_injuries?: string[]
+}
+export const getUserProfile = () => fetchApiWithAuth<{
+  email: string
+  name: string
+  full_name?: string
+  phone?: string
+  age?: number
+  gender?: string
+  height_cm?: number
+  weight_kg?: number
+  bmi?: number
+  occupation?: string
+  previous_injuries?: string[]
+  settings?: Record<string, string>
+}>('/users/me')
+export const updateUserProfile = (data: ProfilePayload) => patchApiWithAuth<{ email: string; name: string }>('/users/me', data)
 export const getUserSettings = () => fetchApiWithAuth<{ api_url?: string; default_device?: string }>('/users/me/settings')
 export const updateUserSettings = (data: { api_url?: string; default_device?: string }) =>
   patchApiWithAuth<{ api_url?: string; default_device?: string }>('/users/me/settings', data)

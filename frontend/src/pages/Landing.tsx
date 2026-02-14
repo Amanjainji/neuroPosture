@@ -1,10 +1,19 @@
-import { Link } from 'react-router-dom'
-import { Activity, Camera, Wifi, Dumbbell, Zap, Shield, BarChart3, ArrowRight } from 'lucide-react'
+import { Link } from "react-router-dom";
+import {
+  Activity,
+  Camera,
+  Wifi,
+  Dumbbell,
+  Zap,
+  Shield,
+  BarChart3,
+  ArrowRight,
+} from "lucide-react";
 
 export default function Landing() {
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-  }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-white overflow-x-hidden">
@@ -18,16 +27,28 @@ export default function Landing() {
             <span className="font-bold text-lg">NeuroPosture AI</span>
           </Link>
           <div className="flex items-center gap-6">
-            <button onClick={() => scrollToSection('features')} className="text-slate-400 hover:text-white transition">
+            <button
+              onClick={() => scrollToSection("features")}
+              className="text-slate-400 hover:text-white transition"
+            >
               Features
             </button>
-            <button onClick={() => scrollToSection('how-it-works')} className="text-slate-400 hover:text-white transition">
+            <button
+              onClick={() => scrollToSection("how-it-works")}
+              className="text-slate-400 hover:text-white transition"
+            >
               How it works
             </button>
-            <Link to="/login" className="px-5 py-2 rounded-lg bg-neuro-500 hover:bg-neuro-600 text-white font-medium transition">
+            <Link
+              to="/login"
+              className="px-5 py-2 rounded-lg bg-neuro-500 hover:bg-neuro-600 text-white font-medium transition"
+            >
               Sign In
             </Link>
-            <Link to="/register" className="px-5 py-2 rounded-lg border border-neuro-500/50 hover:border-neuro-500 text-neuro-400 hover:text-neuro-300 font-medium transition">
+            <Link
+              to="/register"
+              className="px-5 py-2 rounded-lg border border-neuro-500/50 hover:border-neuro-500 text-neuro-400 hover:text-neuro-300 font-medium transition"
+            >
               Register
             </Link>
           </div>
@@ -47,8 +68,9 @@ export default function Landing() {
             <span className="text-neuro-400">Injure Less.</span>
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-12">
-            AI-powered posture analysis and injury risk prediction. Connect wearables, use your webcam, and get
-            real-time coaching for squats, lunges, and more.
+            AI-powered posture analysis and injury risk prediction. Connect
+            wearables, use your webcam, and get real-time coaching for squats,
+            lunges, and more.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
@@ -58,7 +80,7 @@ export default function Landing() {
               Get Started <ArrowRight className="w-5 h-5" />
             </Link>
             <button
-              onClick={() => scrollToSection('features')}
+              onClick={() => scrollToSection("features")}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white font-semibold transition"
             >
               See Features
@@ -91,35 +113,38 @@ export default function Landing() {
       {/* Features */}
       <section id="features" className="py-24 px-6 bg-slate-900/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Everything you need</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+            Everything you need
+          </h2>
           <p className="text-slate-400 text-center max-w-xl mx-auto mb-16">
-            From wearables to webcam, get injury prevention and form correction in one place.
+            From wearables to webcam, get injury prevention and form correction
+            in one place.
           </p>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
                 icon: Wifi,
-                title: 'IoT Wearables',
-                desc: 'Connect ESP32 + MPU6050 sensors for movement and fatigue analysis.',
-                img: 'https://images.unsplash.com/photo-1576243345690-4e4b79b63288?w=400&q=80',
+                title: "IoT Wearables",
+                desc: "Connect ESP32 + MPU6050 sensors for movement and fatigue analysis.",
+                img: "https://images.unsplash.com/photo-1576243345690-4e4b79b63288?w=400&q=80",
               },
               {
                 icon: Camera,
-                title: 'Webcam Posture',
-                desc: 'Real-time pose detection and injury risk from your camera.',
-                img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&q=80',
+                title: "Webcam Posture",
+                desc: "Real-time pose detection and injury risk from your camera.",
+                img: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&q=80",
               },
               {
                 icon: Dumbbell,
-                title: 'AI Coach',
-                desc: 'Live feedback for squats, lunges, bicep curls, and plank.',
-                img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&q=80',
+                title: "AI Coach",
+                desc: "Live feedback for squats, lunges, bicep curls, and plank.",
+                img: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&q=80",
               },
               {
                 icon: BarChart3,
-                title: 'Dashboard Alerts',
-                desc: 'Knee stress, fatigue, stride imbalance — all in one view.',
-                img: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&q=80',
+                title: "Dashboard Alerts",
+                desc: "Knee stress, fatigue, stride imbalance — all in one view.",
+                img: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&q=80",
               },
             ].map(({ icon: Icon, title, desc, img }) => (
               <div
@@ -127,7 +152,11 @@ export default function Landing() {
                 className="group rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800/30 hover:border-neuro-500/30 transition"
               >
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={img} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                  <img
+                    src={img}
+                    alt={title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  />
                 </div>
                 <div className="p-6">
                   <div className="w-12 h-12 rounded-xl bg-neuro-500/20 flex items-center justify-center mb-4">
@@ -145,7 +174,9 @@ export default function Landing() {
       {/* How it works */}
       <section id="how-it-works" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">How it works</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+            How it works
+          </h2>
           <p className="text-slate-400 text-center max-w-xl mx-auto mb-20">
             Three simple steps to smarter training.
           </p>
@@ -156,7 +187,8 @@ export default function Landing() {
               </div>
               <h3 className="font-semibold text-xl mb-3">Connect or Scan</h3>
               <p className="text-slate-400">
-                Pair your wearable sensor or use your webcam. MediaPipe extracts pose landmarks in real time.
+                Pair your wearable sensor or use your webcam. MediaPipe extracts
+                pose landmarks in real time.
               </p>
             </div>
             <div className="text-center">
@@ -165,7 +197,8 @@ export default function Landing() {
               </div>
               <h3 className="font-semibold text-xl mb-3">AI Analysis</h3>
               <p className="text-slate-400">
-                Our models detect form errors — knee over toe, lean back, hip sag — and compute injury risk scores.
+                Our models detect form errors — knee over toe, lean back, hip
+                sag — and compute injury risk scores.
               </p>
             </div>
             <div className="text-center">
@@ -174,7 +207,8 @@ export default function Landing() {
               </div>
               <h3 className="font-semibold text-xl mb-3">Get Feedback</h3>
               <p className="text-slate-400">
-                Receive instant corrections and recommendations. Train safer and improve faster.
+                Receive instant corrections and recommendations. Train safer and
+                improve faster.
               </p>
             </div>
           </div>
@@ -186,13 +220,15 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             {[
-              { value: '4', label: 'Exercises supported' },
-              { value: '33', label: 'Pose landmarks' },
-              { value: 'Real-time', label: 'AI feedback' },
-              { value: 'IoT', label: 'Wearable ready' },
+              { value: "4", label: "Exercises supported" },
+              { value: "33", label: "Pose landmarks" },
+              { value: "Real-time", label: "AI feedback" },
+              { value: "IoT", label: "Wearable ready" },
             ].map(({ value, label }) => (
               <div key={label}>
-                <p className="text-4xl font-bold text-neuro-400 mb-2">{value}</p>
+                <p className="text-4xl font-bold text-neuro-400 mb-2">
+                  {value}
+                </p>
                 <p className="text-slate-400">{label}</p>
               </div>
             ))}
@@ -211,9 +247,12 @@ export default function Landing() {
             />
             <div className="relative">
               <Shield className="w-16 h-16 text-neuro-400 mx-auto mb-6" />
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to train smarter?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Ready to train smarter?
+              </h2>
               <p className="text-slate-400 mb-8 max-w-lg mx-auto">
-                Join NeuroPosture AI and get real-time posture correction and injury risk alerts.
+                Join NeuroPosture AI and get real-time posture correction and
+                injury risk alerts.
               </p>
               <Link
                 to="/login"
@@ -239,5 +278,5 @@ export default function Landing() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
