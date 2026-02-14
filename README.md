@@ -59,6 +59,10 @@ neuroposture-ai/
 └── docs/             # API & IoT schemas
 ```
 
+## Deployment
+
+- **[Deployment guide](docs/DEPLOYMENT.md)** – How to deploy (single server, frontend/backend separate), environment variables, MongoDB, and optional Docker.
+
 ## ML & IoT
 
 - **[ML and IoT guide](docs/ML-AND-IOT.md)** – How to run ML models (data collection, training, detection) and how to send IoT sensor data (ESP32/MPU6050) to the website and injury-prediction pipeline.
