@@ -113,17 +113,24 @@ async def get_me(x_user_email: str = Header(..., alias="X-User-Email")):
 
 @router.patch("/me")
 async def update_me(data: UserUpdate, x_user_email: str = Header(..., alias="X-User-Email")):
-    """Update user profile."""
+    """Update user profile. Creates the user document if it doesn't exist (upsert)."""
     try:
         db = get_db()
         update = {k: v for k, v in data.model_dump().items() if v is not None}
         if not update:
             return await get_me(x_user_email)
+        email_lower = x_user_email.lower()
+        # Ensure email and name exist on upsert so new document is valid
+        set_doc = dict(update)
+        set_doc["email"] = email_lower
+        set_doc.setdefault("name", data.name or email_lower.split("@")[0].replace(".", " ").replace("_", " ").title())
+        set_doc.setdefault("settings", {"api_url": "http://localhost:8000", "default_device": "esp32-demo-1"})
         r = await asyncio.wait_for(
             db.users.find_one_and_update(
-                {"email": x_user_email.lower()},
-                {"$set": update},
+                {"email": email_lower},
+                {"$set": set_doc},
                 return_document=ReturnDocument.AFTER,
+                upsert=True,
             ),
             timeout=2.0
         )
