@@ -84,7 +84,8 @@ export default function Login() {
           </form>
 
           <p className="mt-6 text-center text-slate-500 text-sm">
-            Demo: use any email and password to sign in
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-neuro-400 hover:underline">Register</Link>
           </p>
         </div>
 

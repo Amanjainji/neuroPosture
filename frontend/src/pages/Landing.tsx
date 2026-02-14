@@ -27,6 +27,9 @@ export default function Landing() {
             <Link to="/login" className="px-5 py-2 rounded-lg bg-neuro-500 hover:bg-neuro-600 text-white font-medium transition">
               Sign In
             </Link>
+            <Link to="/register" className="px-5 py-2 rounded-lg border border-neuro-500/50 hover:border-neuro-500 text-neuro-400 hover:text-neuro-300 font-medium transition">
+              Register
+            </Link>
           </div>
         </div>
       </nav>

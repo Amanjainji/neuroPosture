@@ -26,7 +26,6 @@ A production-ready full-stack AI × IoT web application combining wearable senso
 **0. MongoDB** (for user data)
 ```bash
 # Create backend/.env with your MongoDB URI:
-echo "MONGODB_URI=mongodb://localhost:27017" > backend/.env
 # Or use MongoDB Atlas: MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/
 ```
 
@@ -59,3 +58,7 @@ neuroposture-ai/
 ├── ml_models/        # Training scripts & model artifacts
 └── docs/             # API & IoT schemas
 ```
+
+## ML & IoT
+
+- **[ML and IoT guide](docs/ML-AND-IOT.md)** – How to run ML models (data collection, training, detection) and how to send IoT sensor data (ESP32/MPU6050) to the website and injury-prediction pipeline.

@@ -75,9 +75,16 @@ export const analyzeLandmarks = (landmarks: number[][]) =>
   })
 export const listExercises = () => fetchApi<{ exercises: { id: string; name: string; description?: string }[] }>('/coach/exercises')
 
-// User & settings (MongoDB)
-export const loginUser = (email: string, name: string) =>
-  postApi<{ email: string; name: string; settings?: { api_url?: string; default_device?: string } }>('/users/login', { email, name })
+// User & settings (MongoDB) - login with 4s timeout to avoid slow hang
+const LOGIN_TIMEOUT_MS = 4000
+export function loginUser(email: string, name: string): Promise<{ email: string; name: string; settings?: { api_url?: string; default_device?: string } }> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS)
+  return fetchApi<{ email: string; name: string; settings?: { api_url?: string; default_device?: string } }>(
+    '/users/login',
+    { method: 'POST', body: JSON.stringify({ email, name }), signal: controller.signal }
+  ).finally(() => clearTimeout(timeoutId))
+}
 export const getUserProfile = () => fetchApiWithAuth<{ email: string; name: string; settings?: Record<string, string> }>('/users/me')
 export const updateUserProfile = (data: { name?: string }) => patchApiWithAuth<{ email: string; name: string }>('/users/me', data)
 export const getUserSettings = () => fetchApiWithAuth<{ api_url?: string; default_device?: string }>('/users/me/settings')

@@ -14,19 +14,30 @@ class Settings(BaseSettings):
 
 _settings = Settings()
 _client: AsyncIOMotorClient | None = None
+_db = None
+
+
+async def connect_db():
+    """Initialize MongoDB connection."""
+    global _client, _db
+    if _client is None:
+        uri = os.environ.get("MONGODB_URI") or os.getenv("MONGODB_URI") or _settings.mongodb_uri
+        _client = AsyncIOMotorClient(uri, connectTimeoutMS=5000, serverSelectionTimeoutMS=5000)
+        _db = _client.get_database("neuroposture")
+    return _db
 
 
 def get_db():
-    """Get MongoDB database. Uses MONGODB_URI from env."""
-    global _client
-    uri = os.environ.get("MONGODB_URI") or os.getenv("MONGODB_URI") or _settings.mongodb_uri
-    if _client is None:
-        _client = AsyncIOMotorClient(uri)
-    return _client.get_database("neuroposture")
+    """Get MongoDB database. Must call connect_db() first."""
+    global _db
+    if _db is None:
+        raise RuntimeError("Database not connected. Call connect_db() first.")
+    return _db
 
 
 async def close_db():
-    global _client
+    global _client, _db
     if _client:
         _client.close()
         _client = None
+        _db = None

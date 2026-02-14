@@ -5,7 +5,7 @@ type User = { email: string; name: string; id?: string; settings?: { api_url?: s
 
 type AuthContextType = {
   user: User | null
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string, displayName?: string) => Promise<boolean>
   logout: () => void
   isAuthenticated: boolean
   setUser: (u: User | null) => void
@@ -31,16 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
   }, [user])
 
-  const login = async (email: string, _password: string): Promise<boolean> => {
+  const login = async (email: string, _password: string, displayName?: string): Promise<boolean> => {
     const trimmed = email.trim()
-    const name = trimmed.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    const derivedName = trimmed.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    const name = (displayName && displayName.trim()) || derivedName || 'User'
     const fallback = {
       email: trimmed,
-      name: name || 'User',
+      name,
       settings: { api_url: 'http://localhost:8000', default_device: 'esp32-demo-1' } as const,
     }
     try {
-      const u = await loginUser(trimmed, name || trimmed.split('@')[0])
+      const u = await loginUser(trimmed, name)
       setUser({
         email: u.email ?? trimmed,
         name: (u.name ?? name) || 'User',

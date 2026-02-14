@@ -13,13 +13,16 @@ from fastapi.staticfiles import StaticFiles
 from api import devices, posture, coach, health, iot, users
 from services.injury_predictor import InjuryPredictorService
 from services.iot_simulator import IoTDataStore
+from db.mongo import connect_db, close_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await connect_db()
     InjuryPredictorService.get_instance()
     yield
     IoTDataStore.clear()
+    await close_db()
 
 
 app = FastAPI(
