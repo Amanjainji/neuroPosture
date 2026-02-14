@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Utensils, Loader2 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+//import { useAuth } from "../context/AuthContext";
 
 const GENERATE_DELAY_MS = 4000;
 
