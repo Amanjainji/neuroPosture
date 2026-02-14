@@ -7,13 +7,14 @@ This guide covers how to deploy the NeuroPosture AI app (React frontend + FastAP
 ## Table of contents
 
 1. [Overview](#overview)
-2. [Environment variables](#environment-variables)
-3. [Option A: Single server (backend serves frontend)](#option-a-single-server-backend-serves-frontend)
-4. [Option B: Frontend and backend separately](#option-b-frontend-and-backend-separately)
-5. [MongoDB](#mongodb)
-6. [Production run](#production-run)
-7. [Platform notes (Railway, Render, Vercel, etc.)](#platform-notes-railway-render-vercel-etc)
-8. [Docker (optional)](#docker-optional)
+2. [Lightweight deploy (Railway / Render / Docker free tier)](#lightweight-deploy-railway--render--docker-free-tier)
+3. [Environment variables](#environment-variables)
+4. [Option A: Single server (backend serves frontend)](#option-a-single-server-backend-serves-frontend)
+5. [Option B: Frontend and backend separately](#option-b-frontend-and-backend-separately)
+6. [MongoDB](#mongodb)
+7. [Production run](#production-run)
+8. [Platform notes (Railway, Render, Vercel, etc.)](#platform-notes-railway-render-vercel-etc)
+9. [Docker (optional)](#docker-optional)
 
 ---
 
@@ -27,6 +28,66 @@ You can either:
 
 - **Option A**: Build the frontend and serve it from the FastAPI process (one URL, one server).
 - **Option B**: Deploy frontend and backend to different hosts (e.g. Vercel + Railway), and point the frontend at the backend API URL.
+
+---
+
+## Lightweight deploy (Railway / Render / Docker free tier)
+
+Free tiers often fail with the **full** backend because of:
+
+1. **Python version** – 3.13 (or newer) can break some deps. **Use Python 3.11.**
+2. **Memory (512 MB)** – OpenCV + MediaPipe + scikit-learn need ~700 MB–1 GB at import.
+3. **Native binaries** – MediaPipe/OpenCV expect system libs that minimal images don’t have.
+
+**Solution: run in “light” mode** – no OpenCV/MediaPipe/scikit-learn at install or startup. The app still serves:
+
+- Dashboard, Profile, Settings, Devices, Diet Plan, Users (MongoDB)
+- IoT ingest and injury risk from sensor data (heuristics only)
+- Health and API docs
+
+**Posture Scan** and **AI Coach** (image/pose analysis) will return a friendly “ML stack not available (light deployment mode)” message until you deploy with the full ML stack.
+
+### 1. Pin Python to 3.11
+
+- **Render**: `runtime.txt` in the repo root with:
+  ```text
+  python-3.11.9
+  ```
+- **Railway**: Set Python version in dashboard or use `Dockerfile.light` (below).
+- **Docker**: Use `FROM python:3.11-slim` (see `Dockerfile.light`).
+
+### 2. Use light dependencies
+
+Install only the light requirements (no opencv, mediapipe, scikit-learn):
+
+```bash
+pip install -r backend/requirements-light.txt
+```
+
+Do **not** use `backend/requirements.txt` on 512 MB / free-tier hosts unless you have a larger plan.
+
+### 3. Railway / Render (no Docker)
+
+- **Build command**: build frontend, then install Python deps.
+  - Example (root): `cd frontend && npm ci && npm run build && cd ../backend && pip install -r requirements-light.txt`
+- **Start command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`  
+  Or from root: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` (set `PYTHONPATH=/app` or project root).
+- **Root directory**: project root (so `backend/` and `frontend/` exist).
+- Set env: `MONGODB_URI`, `CORS_ORIGINS`, and if you built frontend: `FRONTEND_DIST=./frontend/dist` (path relative to where you run uvicorn).
+
+### 4. Docker (light image)
+
+Use the provided light Dockerfile (Python 3.11, no ML libs):
+
+```bash
+docker build -f Dockerfile.light -t neuroposture-ai .
+docker run -p 8000:8000 -e MONGODB_URI="your-uri" neuroposture-ai
+```
+
+- **Railway**: Set Dockerfile path to `Dockerfile.light` in the dashboard.
+- **Render**: In “Docker” deploy, set Dockerfile to `Dockerfile.light`.
+
+Heavy ML (posture from images) is only available if you later deploy with the full `requirements.txt` and a runtime that supports OpenCV/MediaPipe (e.g. paid tier or self-hosted with enough RAM).
 
 ---
 
@@ -140,11 +201,12 @@ Without a valid `MONGODB_URI`, login and profile save will use in-memory fallbac
 
 ## Platform notes (Railway, Render, Vercel, etc.)
 
-### Railway / Render (backend)
+### Railway / Render (backend) – use light mode on free tier
 
+- **Free tier**: Use **Lightweight deploy** above: `requirements-light.txt`, Python 3.11, and optionally `Dockerfile.light`. Do not use full `requirements.txt` on 512 MB.
 - Set env: `MONGODB_URI`, `CORS_ORIGINS` (your frontend URL).
-- Start: `uvicorn main:app --host 0.0.0.0 --port $PORT` (use `$PORT` if the platform sets it).
-- Root: usually the repo root; ensure `backend` is the working directory or run from `backend` and set `PYTHONPATH` if needed.
+- Start: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` from repo root (or `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`).
+- If you built frontend in the same repo, set `FRONTEND_DIST=./frontend/dist` (or the path where `dist` lives relative to the working directory).
 
 ### Vercel / Netlify (frontend only)
 
@@ -162,9 +224,20 @@ Actually: if `BASE = import.meta.env.VITE_API_URL || '/api'`, then `VITE_API_URL
 
 ## Docker (optional)
 
-Example for a single-server deploy with Docker.
+### Light image (recommended for free tier)
 
-**Dockerfile** (place in project root or `backend`):
+Uses Python 3.11 and **no** OpenCV/MediaPipe – stays under 512 MB and avoids native binary issues:
+
+```bash
+docker build -f Dockerfile.light -t neuroposture-ai .
+docker run -p 8000:8000 -e MONGODB_URI="your-uri" neuroposture-ai
+```
+
+See [Lightweight deploy](#lightweight-deploy-railway--render--docker-free-tier) for what works in this mode.
+
+### Full image (ML posture analysis)
+
+Only use on hosts with enough RAM (~1 GB+) and compatible system libs:
 
 ```dockerfile
 # Build frontend
@@ -175,10 +248,11 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# Backend + serve frontend
+# Backend with full ML stack
 FROM python:3.11-slim
 WORKDIR /app
 COPY backend/ ./backend/
+RUN apt-get update && apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 ENV FRONTEND_DIST=/app/frontend/dist
@@ -193,8 +267,6 @@ Build and run:
 docker build -t neuroposture-ai .
 docker run -p 8000:8000 -e MONGODB_URI="your-uri" neuroposture-ai
 ```
-
-Adjust `COPY` paths if the Dockerfile lives in `backend/` (e.g. `COPY . .` and `CMD ["uvicorn", "main:app", ...]` with `WORKDIR /app/backend`).
 
 ---
 

@@ -1,18 +1,12 @@
 """
 Posture analysis using MediaPipe landmarks.
-Inspired by Exercise-Correction: angle/distance heuristics + form scoring.
+Heavy deps (cv2, numpy, mediapipe) are lazy-loaded so the app can run without them (e.g. free-tier deploy).
 """
 import math
-import cv2
-import numpy as np
-from typing import Optional
+from typing import Optional, Union
 import asyncio
 
-try:
-    import mediapipe as mp
-    HAS_MEDIAPIPE = True
-except ImportError:
-    HAS_MEDIAPIPE = False
+# No top-level cv2/numpy/mediapipe - they are imported only when needed in _analyze_frame_sync
 
 # MediaPipe Pose landmark indices
 # https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
@@ -48,9 +42,20 @@ def _get(pts: list, name: str) -> list:
     return [0, 0, 0]
 
 
+def _ml_unavailable_response() -> dict:
+    return {
+        "detected": False,
+        "error": "ML stack not available (light deployment mode)",
+        "injury_risk": 0.3,
+        "posture_score": 0.5,
+        "feedback": ["Server is running in light mode. Deploy with opencv + mediapipe for posture analysis."],
+        "corrections": [],
+    }
+
+
 class PostureAnalyzerService:
     _instance: Optional["PostureAnalyzerService"] = None
-    _mp_pose = None
+    _mp_pose = None  # Lazy-loaded when needed
 
     @classmethod
     def get_instance(cls) -> "PostureAnalyzerService":
@@ -59,15 +64,8 @@ class PostureAnalyzerService:
         return cls._instance
 
     def __init__(self):
-        if HAS_MEDIAPIPE:
-            self._mp_pose = mp.solutions.pose.Pose(
-                static_image_mode=False,
-                model_complexity=1,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5,
-            )
-        else:
-            self._mp_pose = None
+        # Do not load mediapipe/opencv here - allows 512MB free-tier deploy
+        self._mp_pose = None
 
     def analyze_landmarks(self, landmarks: list) -> dict:
         """Analyze pose from 33 MediaPipe landmarks [[x,y,z], ...]."""
@@ -218,25 +216,37 @@ class PostureAnalyzerService:
             "corrections": [],
         }
 
-    async def analyze_frame(self, nparr: np.ndarray) -> dict:
-        """Analyze posture from raw image bytes."""
+    async def analyze_frame(self, data: Union[bytes, "np.ndarray"]) -> dict:
+        """Analyze posture from raw image bytes or numpy array. Accepts bytes to avoid requiring numpy at call site."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._analyze_frame_sync, nparr)
+        return await loop.run_in_executor(None, self._analyze_frame_sync, data)
 
-    def _analyze_frame_sync(self, nparr: np.ndarray) -> dict:
+    def _analyze_frame_sync(self, data: Union[bytes, "np.ndarray"]) -> dict:
+        try:
+            import cv2
+            import numpy as np
+        except ImportError:
+            return _ml_unavailable_response()
+
+        if isinstance(data, bytes):
+            nparr = np.frombuffer(data, dtype=np.uint8)
+        else:
+            nparr = data
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
             return {"detected": False, "error": "Invalid image"}
 
         if self._mp_pose is None:
-            return {
-                "detected": False,
-                "error": "MediaPipe not installed",
-                "injury_risk": 0.3,
-                "posture_score": 0.5,
-                "feedback": ["Install mediapipe for server-side analysis"],
-                "corrections": [],
-            }
+            try:
+                import mediapipe as mp
+                self._mp_pose = mp.solutions.pose.Pose(
+                    static_image_mode=False,
+                    model_complexity=1,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+            except ImportError:
+                return _ml_unavailable_response()
 
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = self._mp_pose.process(rgb)

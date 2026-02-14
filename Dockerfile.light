@@ -1,0 +1,31 @@
+# Lightweight deploy for Railway / Render / 512MB free tier.
+# No OpenCV/MediaPipe – dashboard, profile, devices, IoT, diet plan work; posture/coach return "light mode" message.
+# Python 3.11 to avoid 3.13 compatibility issues.
+
+# ---- Frontend ----
+FROM node:20-alpine AS frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Backend (light deps only) ----
+FROM python:3.11-slim
+WORKDIR /app
+
+# Backend code
+COPY backend/ ./backend/
+
+# Light deps only (no opencv, mediapipe, scikit-learn)
+RUN pip install --no-cache-dir -r backend/requirements-light.txt
+
+# Frontend static
+COPY --from=frontend /app/frontend/dist ./frontend/dist
+
+ENV FRONTEND_DIST=/app/frontend/dist
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

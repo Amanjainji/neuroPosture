@@ -62,6 +62,7 @@ neuroposture-ai/
 ## Deployment
 
 - **[Deployment guide](docs/DEPLOYMENT.md)** – How to deploy (single server, frontend/backend separate), environment variables, MongoDB, and optional Docker.
+- **Railway / Render / Docker free tier**: Use **light mode** (Python 3.11 + `requirements-light.txt` or `Dockerfile.light`) so the app runs in 512 MB without OpenCV/MediaPipe; dashboard, profile, devices, IoT, and diet plan work; posture/coach return a “light mode” message until you deploy with the full ML stack.
 
 ## ML & IoT
 

@@ -1,9 +1,8 @@
-"""Posture analysis from webcam/CV data."""
+"""Posture analysis from webcam/CV data. Passes bytes to analyzer (no numpy at API layer for light deploy)."""
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
 import base64
-import numpy as np
 
 from services.posture_analyzer import PostureAnalyzerService
 
@@ -24,9 +23,8 @@ class PoseLandmarks(BaseModel):
 @router.post("/analyze/image")
 async def analyze_image(file: UploadFile = File(...)):
     contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
     analyzer = PostureAnalyzerService.get_instance()
-    result = await analyzer.analyze_frame(nparr)
+    result = await analyzer.analyze_frame(contents)
     return result
 
 
@@ -46,7 +44,6 @@ async def analyze_base64(data: dict):
     if not img_b64:
         return {"error": "Missing 'image' field"}
     raw = base64.b64decode(img_b64)
-    nparr = np.frombuffer(raw, np.uint8)
     analyzer = PostureAnalyzerService.get_instance()
-    result = await analyzer.analyze_frame(nparr)
+    result = await analyzer.analyze_frame(raw)
     return result
