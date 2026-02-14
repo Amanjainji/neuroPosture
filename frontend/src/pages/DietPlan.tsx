@@ -287,7 +287,7 @@ const PLAN_4 = {
 const SAMPLE_PLANS = [PLAN_1, PLAN_2, PLAN_3, PLAN_4];
 
 export default function DietPlan() {
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState<(typeof SAMPLE_PLANS)[0] | null>(null);
   const [progress, setProgress] = useState(0);
