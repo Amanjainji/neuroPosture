@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import base64
 
-from services.posture_analyzer import PostureAnalyzerService
+from backend.services.posture_analyzer import PostureAnalyzerService
 
 router = APIRouter()
 

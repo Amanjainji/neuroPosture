@@ -12,8 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from backend.api import devices, posture, coach, health, iot, users
-from services.injury_predictor import InjuryPredictorService
-from services.iot_simulator import IoTDataStore
+from backend.services.injury_predictor import InjuryPredictorService
+from backend.services.iot_simulator import IoTDataStore
 from db.mongo import connect_db, close_db
 
 # Deployment: comma-separated origins, e.g. https://myapp.com,https://www.myapp.com

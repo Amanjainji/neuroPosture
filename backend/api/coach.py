@@ -3,7 +3,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import asyncio
 import json
 
-from services.posture_analyzer import PostureAnalyzerService
+from backend.services.posture_analyzer import PostureAnalyzerService
 
 router = APIRouter()
 
