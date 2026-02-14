@@ -1,0 +1,7 @@
+# ML training dependencies (install in project root or venv)
+opencv-python>=4.6.0
+mediapipe>=0.10.0
+numpy>=1.24.0
+pandas>=1.4.0
+scikit-learn>=1.1.0
+joblib>=1.2.0

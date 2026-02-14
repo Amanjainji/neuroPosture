@@ -1,0 +1,10 @@
+{
+  "name": "neuroposture-ai",
+  "version": "1.0.0",
+  "description": "Smart Injury Risk Prediction & Real-Time AI Coach",
+  "scripts": {
+    "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "frontend": "cd frontend && npm run dev",
+    "install:all": "pip install -r backend/requirements.txt && cd frontend && npm install"
+  }
+}
