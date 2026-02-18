@@ -1,9 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Camera, Loader2 } from 'lucide-react'
+import { Camera} from 'lucide-react'
 import { analyzeLandmarks } from '../lib/api'
 
 // MediaPipe JS imports
-import { Pose, POSE_CONNECTIONS, Results } from '@mediapipe/pose'
+import { Pose, Results } from '@mediapipe/pose'
 import { Camera as MpCamera } from '@mediapipe/camera_utils'
 
 export default function WebcamPosture() {
