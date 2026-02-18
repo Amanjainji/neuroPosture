@@ -3,6 +3,7 @@ Posture analysis using MediaPipe landmarks.
 Heavy deps (cv2, numpy, mediapipe) are lazy-loaded so the app can run without them (e.g. free-tier deploy).
 """
 import math
+from pathlib import Path
 from typing import Optional, Union
 import asyncio
 
@@ -55,7 +56,7 @@ def _ml_unavailable_response() -> dict:
 
 class PostureAnalyzerService:
     _instance: Optional["PostureAnalyzerService"] = None
-    _mp_pose = None  # Lazy-loaded when needed
+    _landmarker = None  # MediaPipe 0.10 PoseLandmarker (lazy-loaded)
 
     @classmethod
     def get_instance(cls) -> "PostureAnalyzerService":
@@ -64,8 +65,60 @@ class PostureAnalyzerService:
         return cls._instance
 
     def __init__(self):
-        # Do not load mediapipe/opencv here - allows 512MB free-tier deploy
-        self._mp_pose = None
+        self._landmarker = None
+
+    def _find_pose_model(self) -> Optional[Path]:
+        """Look for pose_landmarker_lite.task in several places (not only backend/models)."""
+        name = "pose_landmarker_lite.task"
+        backend_dir = Path(__file__).resolve().parent.parent  # backend/
+        root = backend_dir.parent  # project root
+        for d in (backend_dir / "models", backend_dir, root / "ml_models" / "models", root / "ml_models"):
+            p = d / name
+            if p.is_file():
+                return p
+        return None
+
+    def _get_landmarker(self):
+        """Create PoseLandmarker (MediaPipe 0.10 Tasks API). Uses existing model or downloads on first use."""
+        if self._landmarker is not None:
+            return self._landmarker
+        if getattr(self, "_landmarker_failed", False):
+            return None
+        try:
+            import urllib.request
+            from mediapipe.tasks.python.core import base_options as base_options_lib
+            from mediapipe.tasks.python.vision import PoseLandmarker, PoseLandmarkerOptions
+            from mediapipe.tasks.python.vision.core import vision_task_running_mode
+        except ImportError:
+            self._landmarker_failed = True
+            return None
+        model_path = self._find_pose_model()
+        if model_path is None:
+            model_dir = Path(__file__).resolve().parent.parent / "models"
+            model_path = model_dir / "pose_landmarker_lite.task"
+            model_dir.mkdir(parents=True, exist_ok=True)
+            if not model_path.is_file():
+                try:
+                    url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+                    urllib.request.urlretrieve(url, model_path)
+                except Exception:
+                    self._landmarker_failed = True
+                    return None
+        try:
+            base_options = base_options_lib.BaseOptions(model_asset_path=str(model_path))
+            options = PoseLandmarkerOptions(
+                base_options=base_options,
+                running_mode=vision_task_running_mode.VisionTaskRunningMode.IMAGE,
+                num_poses=1,
+                min_pose_detection_confidence=0.5,
+                min_pose_presence_confidence=0.5,
+                min_tracking_confidence=0.5,
+            )
+            self._landmarker = PoseLandmarker.create_from_options(options)
+            return self._landmarker
+        except Exception:
+            self._landmarker_failed = True
+            return None
 
     def analyze_landmarks(self, landmarks: list) -> dict:
         """Analyze pose from 33 MediaPipe landmarks [[x,y,z], ...]."""
@@ -236,21 +289,19 @@ class PostureAnalyzerService:
         if img is None:
             return {"detected": False, "error": "Invalid image"}
 
-        if self._mp_pose is None:
-            try:
-                import mediapipe as mp
-                self._mp_pose = mp.solutions.pose.Pose(
-                    static_image_mode=False,
-                    model_complexity=1,
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                )
-            except ImportError:
-                return _ml_unavailable_response()
+        landmarker = self._get_landmarker()
+        if landmarker is None:
+            return _ml_unavailable_response()
 
-        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = self._mp_pose.process(rgb)
-        if not results.pose_landmarks:
+        rgb = np.ascontiguousarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        try:
+            from mediapipe.tasks.python.vision.core import image as image_lib
+            mp_image = image_lib.Image(image_lib.ImageFormat.SRGB, rgb)
+            result = landmarker.detect(mp_image)
+        except Exception:
+            return _ml_unavailable_response()
+
+        if not result.pose_landmarks or len(result.pose_landmarks) == 0:
             return {
                 "detected": False,
                 "injury_risk": 0.3,
@@ -259,7 +310,16 @@ class PostureAnalyzerService:
                 "corrections": [],
             }
 
+        landmarks = result.pose_landmarks[0]
         pts = []
-        for lm in results.pose_landmarks.landmark:
-            pts.append([lm.x, lm.y, lm.z])
-        return self.analyze_landmarks(pts)
+        for lm in landmarks:
+            x = getattr(lm, "x", None) or 0.0
+            y = getattr(lm, "y", None) or 0.0
+            z = getattr(lm, "z", None) or 0.0
+            pts.append([float(x), float(y), float(z)])
+        if len(pts) < 33:
+            pts.extend([[0.0, 0.0, 0.0]] * (33 - len(pts)))
+        result = self.analyze_landmarks(pts[:33])
+        # include the raw landmark list so clients can draw them if desired
+        result["landmarks"] = pts[:33]
+        return result

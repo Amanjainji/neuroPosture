@@ -3,11 +3,24 @@ Extract MediaPipe pose landmarks from video or webcam.
 Reference: https://github.com/NgoQuocBao1010/Exercise-Correction
 """
 import cv2
-import mediapipe as mp
+# use MediaPipe 0.10 Tasks API rather than the older "solutions" module
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Generator, Optional
+
+# helper from webcam_collector handles model download/lookup
+# when executed as a standalone script the ml_models package may not be on PYTHONPATH
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+try:
+    from ml_models.webcam_collector import get_pose_landmarker
+except ImportError:
+    try:
+        from webcam_collector import get_pose_landmarker
+    except ImportError:
+        # last resort: copy the helper inline or raise
+        raise
 
 # MediaPipe Pose landmark indices (33 landmarks)
 LANDMARKS = {
@@ -34,17 +47,16 @@ def extract_from_video(
     max_frames: Optional[int] = None,
 ) -> pd.DataFrame:
     """
-    Extract pose landmarks from a video file.
+    Extract pose landmarks from a video file using MediaPipe 0.10 PoseLandmarker.
     Returns DataFrame with columns: frame, label, lm0_x, lm0_y, lm0_z, ... lm32_z
     """
-    mp_pose = mp.solutions.pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
+    landmarker = get_pose_landmarker()
+    if landmarker is None:
+        raise RuntimeError("Could not initialise MediaPipe pose landmarker")
 
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise RuntimeError(f"Could not open video file: {video_path}")
     rows = []
     frame_idx = 0
 
@@ -56,14 +68,16 @@ def extract_from_video(
             break
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = mp_pose.process(rgb)
+        from mediapipe.tasks.python.vision.core import image as image_lib
+        mp_image = image_lib.Image(image_lib.ImageFormat.SRGB, np.ascontiguousarray(rgb))
+        results = landmarker.detect(mp_image)
 
         row = {"frame": frame_idx}
         if label is not None:
             row["label"] = label
 
-        if results.pose_landmarks:
-            for i, lm in enumerate(results.pose_landmarks.landmark):
+        if results and results.pose_landmarks and len(results.pose_landmarks) > 0:
+            for i, lm in enumerate(results.pose_landmarks[0]):
                 row[f"lm{i}_x"] = lm.x
                 row[f"lm{i}_y"] = lm.y
                 row[f"lm{i}_z"] = lm.z
@@ -77,7 +91,10 @@ def extract_from_video(
         frame_idx += 1
 
     cap.release()
-    mp_pose.close()
+    try:
+        landmarker.close()
+    except Exception:
+        pass
     return pd.DataFrame(rows)
 
 
@@ -91,12 +108,9 @@ def extract_from_webcam(
     Capture from webcam and extract landmarks. Saves to CSV.
     Press 'q' to stop early, 's' to save snapshot.
     """
-    mp_pose = mp.solutions.pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
+    landmarker = get_pose_landmarker()
+    if landmarker is None:
+        raise RuntimeError("Could not initialise MediaPipe pose landmarker")
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -119,11 +133,13 @@ def extract_from_webcam(
 
         if frame_idx % frame_interval == 0:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = mp_pose.process(rgb)
+            from mediapipe.tasks.python.vision.core import image as image_lib
+            mp_image = image_lib.Image(image_lib.ImageFormat.SRGB, np.ascontiguousarray(rgb))
+            results = landmarker.detect(mp_image)
 
             row = {"frame": len(rows), "label": label}
-            if results.pose_landmarks:
-                for i, lm in enumerate(results.pose_landmarks.landmark):
+            if results and results.pose_landmarks and len(results.pose_landmarks) > 0:
+                for i, lm in enumerate(results.pose_landmarks[0]):
                     row[f"lm{i}_x"] = lm.x
                     row[f"lm{i}_y"] = lm.y
                     row[f"lm{i}_z"] = lm.z
@@ -145,7 +161,10 @@ def extract_from_webcam(
 
     cap.release()
     cv2.destroyAllWindows()
-    mp_pose.close()
+    try:
+        landmarker.close()
+    except Exception:
+        pass
 
     df = pd.DataFrame(rows)
     Path(output_csv).parent.mkdir(parents=True, exist_ok=True)
