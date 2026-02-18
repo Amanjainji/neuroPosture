@@ -3,7 +3,7 @@ import { Camera, Loader2 } from 'lucide-react'
 import { analyzeLandmarks } from '../lib/api'
 
 import { Pose, POSE_CONNECTIONS, Results } from '@mediapipe/pose'
-import { Camera as MpCamera } from '@mediapipe/camera_utils'
+// import { Camera as MpCamera } from '@mediapipe/camera_utils'
 
 export default function WebcamPosture() {
   const videoRef = useRef<HTMLVideoElement>(null)
