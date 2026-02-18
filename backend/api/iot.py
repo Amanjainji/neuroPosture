@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-from backend.services.iot_simulator import IoTDataStore
-from backend.services.injury_predictor import InjuryPredictorService
+from services.iot_simulator import IoTDataStore
+from services.injury_predictor import InjuryPredictorService
 
 router = APIRouter()
 

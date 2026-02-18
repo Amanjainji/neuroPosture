@@ -21,23 +21,39 @@ A production-ready full-stack AI × IoT web application combining wearable senso
 - **AI/CV**: MediaPipe, OpenCV, scikit-learn
 - **Real-time**: WebSocket
 
+## Run on localhost first, then deploy
+
+**Local setup:** Follow **[docs/LOCAL-SETUP.md](docs/LOCAL-SETUP.md)** for a step-by-step guide (MongoDB, `.env`, install, run backend + frontend, and quick checks). Summary below.
+
+| Step | What to do |
+|------|------------|
+| **1. Python** | Use Python 3.11 (3.12+ may work; 3.11 is safest for OpenCV/MediaPipe). |
+| **2. Node.js** | Install Node 18+ and npm (for the frontend). |
+| **3. MongoDB** | Run MongoDB locally or create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas). Required for login and user profiles. |
+| **4. Backend .env** | Create `backend/.env` with `MONGODB_URI=mongodb://localhost:27017` (or your Atlas URI). See `backend/.env.example`. |
+| **5. Install deps** | Backend: `pip install -r backend/requirements.txt`. Frontend: `cd frontend && npm install`. |
+| **6. Run both** | Backend from **project root** (see Quick Start below). Frontend: `cd frontend && npm run dev`. |
+
+**Deploy later:** Once it works locally, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for production deployment.
+
 ## Quick Start
 
 **0. MongoDB** (for user data)
 ```bash
 # Create backend/.env with your MongoDB URI:
+# MONGODB_URI=mongodb://localhost:27017
 # Or use MongoDB Atlas: MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/
 ```
 
-**1. Install dependencies**
+**1. Install dependencies** (from project root)
 ```bash
 pip install -r backend/requirements.txt
 cd frontend && npm install
 ```
 
-**2. Start backend** (terminal 1)
+**2. Start backend** (terminal 1, from **project root**)
 ```bash
-cd backend && python -m uvicorn main:app --reload --port 8000
+uvicorn backend.main:app --reload --port 8000
 ```
 
 **3. Start frontend** (terminal 2)

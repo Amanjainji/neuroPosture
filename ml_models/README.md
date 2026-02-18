@@ -38,7 +38,7 @@ python webcam_collector.py
 **Option B – Pose extractor**:
 
 ```bash
-python pose_extractor.py --webcam --label squat --output data/squat.csv
+python ml_models/pose_extractor.py --webcam --label squat --output data/squat.csv
 ```
 
 **Option C – Synthetic samples** (no webcam):

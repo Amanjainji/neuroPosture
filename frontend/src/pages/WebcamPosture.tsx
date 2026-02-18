@@ -1,12 +1,17 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { Camera, Loader2 } from 'lucide-react'
-import { analyzePosture } from '../lib/api'
+import { analyzeLandmarks } from '../lib/api'
+
+// MediaPipe JS imports
+import { Pose, POSE_CONNECTIONS, Results } from '@mediapipe/pose'
+import { Camera as MpCamera } from '@mediapipe/camera_utils'
 
 export default function WebcamPosture() {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const captureCanvasRef = useRef<HTMLCanvasElement>(null) // hidden for screenshot
+  const landmarkCanvasRef = useRef<HTMLCanvasElement>(null) // overlay for landmarks
   const [stream, setStream] = useState<MediaStream | null>(null)
-  const [analyzing, setAnalyzing] = useState(false)
+  // const [analyzing, setAnalyzing] = useState(false)  // removed, no longer needed
   const [result, setResult] = useState<{
     detected: boolean
     injury_risk?: number
@@ -15,6 +20,10 @@ export default function WebcamPosture() {
     corrections?: string[]
     exercise?: string
   } | null>(null)
+  const [live, setLive] = useState(false) // continuous analysis
+  const [landmarks, setLandmarks] = useState<number[][] | null>(null)
+  const landmarksRef = useRef<number[][] | null>(null)
+  const liveIntervalRef = useRef<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const startCamera = useCallback(async () => {
@@ -31,6 +40,49 @@ export default function WebcamPosture() {
     }
   }, [])
 
+  // set up MediaPipe pose when stream starts
+  useEffect(() => {
+    if (!stream) return
+    const video = videoRef.current
+    const landmarkCanvas = landmarkCanvasRef.current
+    if (!video || !landmarkCanvas) return
+
+    const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`})
+    pose.setOptions({modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: 0.5})
+    pose.onResults((res: Results) => {
+      if (res.poseLandmarks && res.poseLandmarks.length > 0) {
+        const pts = res.poseLandmarks.map((lm) => [lm.x, lm.y, lm.z])
+        setLandmarks(pts)
+        // draw overlay
+        const lc = landmarkCanvas
+        lc.width = video.videoWidth
+        lc.height = video.videoHeight
+        const lctx = lc.getContext('2d')
+        if (lctx) {
+          lctx.clearRect(0, 0, lc.width, lc.height)
+          lctx.fillStyle = 'rgba(0,255,0,0.8)'
+          pts.forEach((lm) => {
+            const x = lm[0] * lc.width
+            const y = lm[1] * lc.height
+            lctx.beginPath()
+            lctx.arc(x, y, 5, 0, 2 * Math.PI)
+            lctx.fill()
+          })
+        }
+      }
+    })
+    const camera = new MpCamera(video, {
+      onFrame: async () => await pose.send({image: video}),
+      width: 640,
+      height: 480,
+    })
+    camera.start()
+    return () => {
+      camera.stop()
+      pose.close()
+    }
+  }, [stream])
+
   useEffect(() => {
     const video = videoRef.current
     if (!video || !stream) return
@@ -39,6 +91,12 @@ export default function WebcamPosture() {
   }, [stream])
 
   const stopCamera = useCallback(() => {
+    // stop live loop and camera stream
+    setLive(false)
+    if (liveIntervalRef.current) {
+      clearInterval(liveIntervalRef.current)
+      liveIntervalRef.current = null
+    }
     stream?.getTracks().forEach((t) => t.stop())
     setStream(null)
     setResult(null)
@@ -50,37 +108,56 @@ export default function WebcamPosture() {
     }
   }, [stream])
 
+  // read landmarks from ref to avoid re-creating interval effect when landmarks change
   const captureAndAnalyze = useCallback(async () => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || !stream || analyzing) return
-
-    setAnalyzing(true)
+    const pts = landmarksRef.current
+    if (!pts) return
     setResult(null)
     try {
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('No canvas context')
-      ctx.drawImage(video, 0, 0)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-      const base64 = dataUrl.split(',')[1]
-      if (!base64) throw new Error('Failed to capture frame')
-      const res = (await analyzePosture(base64)) as {
-        detected: boolean
-        injury_risk?: number
-        posture_score?: number
-        feedback?: string[]
-        corrections?: string[]
-        exercise?: string
-      }
-      setResult(res)
+      const res = await analyzeLandmarks(pts)
+      setResult(res as any)
     } catch (e) {
       setResult({ detected: false, feedback: [(e as Error).message] })
-    } finally {
-      setAnalyzing(false)
     }
-  }, [stream, analyzing])
+  }, [])
+
+  // continuous capture loop when live mode is active
+  // interval used during live mode (milliseconds). bump to 1000 for one-second updates.
+  const LIVE_INTERVAL = 500
+
+  // keep landmarksRef in sync with latest landmarks
+  useEffect(() => {
+    landmarksRef.current = landmarks
+  }, [landmarks])
+
+  useEffect(() => {
+    if (!live || !stream) {
+      // ensure interval cleared when stopping live or stopping stream
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current)
+        liveIntervalRef.current = null
+      }
+      return
+    }
+
+    // start a single interval that sends at LIVE_INTERVAL regardless of frame rate
+    if (!liveIntervalRef.current) {
+      liveIntervalRef.current = window.setInterval(() => {
+        const pts = landmarksRef.current
+        if (pts) {
+          // fire-and-forget; captureAndAnalyze updates state
+          void captureAndAnalyze()
+        }
+      }, LIVE_INTERVAL) as unknown as number
+    }
+
+    return () => {
+      if (liveIntervalRef.current) {
+        clearInterval(liveIntervalRef.current)
+        liveIntervalRef.current = null
+      }
+    }
+  }, [live, stream, captureAndAnalyze])
 
   return (
     <div className="space-y-8">
@@ -96,14 +173,21 @@ export default function WebcamPosture() {
           <div className="aspect-video bg-slate-900 flex items-center justify-center relative">
             {stream ? (
               <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                />
-                <canvas ref={canvasRef} className="hidden" />
+                <div className="relative w-full h-full">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                  />
+                  <canvas
+                    ref={landmarkCanvasRef}
+                    className="absolute top-0 left-0"
+                    style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                  />
+                </div>
+                <canvas ref={captureCanvasRef} className="hidden" />
               </>
             ) : (
               <div className="text-center text-slate-500">
@@ -125,15 +209,17 @@ export default function WebcamPosture() {
               <>
                 <button
                   onClick={captureAndAnalyze}
-                  disabled={analyzing}
+                  disabled={!landmarks || live}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neuro-500 text-white hover:bg-neuro-600 disabled:opacity-50 transition-colors"
                 >
-                  {analyzing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Camera className="w-4 h-4" />
-                  )}
-                  {analyzing ? 'Analyzing...' : 'Analyze Posture'}
+                  <Camera className="w-4 h-4" />
+                  Analyze Posture
+                </button>
+                <button
+                  onClick={() => setLive((l) => !l)}
+                  className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors"
+                >
+                  {live ? 'Stop Live' : 'Start Live'}
                 </button>
                 <button
                   onClick={stopCamera}
@@ -150,7 +236,9 @@ export default function WebcamPosture() {
         <div className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-6">
           <h2 className="font-semibold text-white mb-4">Analysis Results</h2>
           {result ? (
-            <div className="space-y-4">
+            <>
+              <p className="text-sm text-slate-400">{live && 'Live mode'} </p>
+              <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="flex-1 p-4 rounded-lg bg-slate-700/30">
                   <p className="text-sm text-slate-400">Injury Risk</p>
@@ -191,6 +279,7 @@ export default function WebcamPosture() {
                 </div>
               ) : null}
             </div>
+            </>  
           ) : (
             <p className="text-slate-400">
               Start the camera and click &quot;Analyze Posture&quot; to get real-time injury risk and posture correction feedback.

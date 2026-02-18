@@ -4,7 +4,8 @@ fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 opencv-python-headless==4.9.0.80
-mediapipe==0.10.32
+# Use 0.10.x; posture_analyzer uses Tasks API (PoseLandmarker) + downloaded model
+mediapipe>=0.10.13
 numpy>=1.24,<3
 scikit-learn>=1.4.0
 pydantic==2.6.0

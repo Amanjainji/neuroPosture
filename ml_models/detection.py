@@ -3,9 +3,21 @@ Real-time detection using trained models + MediaPipe.
 Run with webcam for live posture feedback.
 """
 import cv2
-import mediapipe as mp
+# Use MediaPipe 0.10 Tasks API like other scripts
 import numpy as np
 from pathlib import Path
+
+# helper to create landmarker (same as pose_extractor)
+import sys, os
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from ml_models.webcam_collector import get_pose_landmarker
+except ImportError:
+    try:
+        from webcam_collector import get_pose_landmarker
+    except ImportError:
+        # if helper isn't available, we can inline minimal version later
+        get_pose_landmarker = None
 
 # Add parent
 import sys
@@ -41,9 +53,17 @@ def load_model(exercise: str):
 
 
 def row_from_landmarks(landmarks) -> dict:
-    """Convert MediaPipe landmarks to row dict."""
+    """Convert MediaPipe landmarks to row dict.
+    Accepts either a solution-style object or a list from PoseLandmarker.
+    """
     row = {}
-    for i, lm in enumerate(landmarks.landmark):
+    # tasks API returns a list of NormalizedLandmark; solutions returned a
+    # object with .landmark property
+    if hasattr(landmarks, "landmark"):
+        iterable = landmarks.landmark
+    else:
+        iterable = landmarks
+    for i, lm in enumerate(iterable):
         row[f"lm{i}_x"] = lm.x
         row[f"lm{i}_y"] = lm.y
         row[f"lm{i}_z"] = lm.z
@@ -51,18 +71,34 @@ def row_from_landmarks(landmarks) -> dict:
 
 
 def main():
-    mp_pose = mp.solutions.pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
-    mp_draw = mp.solutions.drawing_utils
-    mp_draw_styles = mp.solutions.drawing_styles
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video", "-v", help="Optional video file for detection")
+    args = parser.parse_args()
 
-    cap = cv2.VideoCapture(0)
+    # create MediaPipe PoseLandmarker
+    landmarker = None
+    if get_pose_landmarker:
+        landmarker = get_pose_landmarker()
+    if landmarker is None:
+        print("ERROR: Could not initialize MediaPipe pose landmarker")
+        return
+
+    # drawing utilities from tasks API (fallback to solutions if available)
+    try:
+        from mediapipe.tasks.python.vision import drawing_utils, drawing_styles
+        from mediapipe.tasks.python.vision import PoseLandmarksConnections
+    except ImportError:
+        # if tasks drawing not available, use solutions (unlikely)
+        import mediapipe as mp
+        drawing_utils = mp.solutions.drawing_utils
+        drawing_styles = mp.solutions.drawing_styles
+        PoseLandmarksConnections = mp.solutions.pose.POSE_CONNECTIONS
+
+    source = args.video if args.video else 0
+    cap = cv2.VideoCapture(source)
     if not cap.isOpened():
-        print("Could not open webcam")
+        print(f"Could not open {'video' if args.video else 'webcam'}:", source)
         return
 
     exercise = "squat"
@@ -77,32 +113,71 @@ def main():
             break
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = mp_pose.process(rgb)
+        from mediapipe.tasks.python.vision.core import image as image_lib
+        mp_image = image_lib.Image(image_lib.ImageFormat.SRGB, np.ascontiguousarray(rgb))
+        results = landmarker.detect(mp_image)
 
         feedback = ""
-        if results.pose_landmarks:
-            mp_draw.draw_landmarks(
-                frame,
-                results.pose_landmarks,
-                mp.solutions.pose.POSE_CONNECTIONS,
-                landmark_drawing_spec=mp_draw_styles.get_default_pose_landmarks_style(),
-            )
-            row = row_from_landmarks(results.pose_landmarks)
+        if results and results.pose_landmarks and len(results.pose_landmarks) > 0:
+            landmarks = results.pose_landmarks[0]
+            try:
+                drawing_utils.draw_landmarks(
+                    frame,
+                    landmarks,
+                    PoseLandmarksConnections.POSE_LANDMARKS,
+                    landmark_drawing_spec=drawing_styles.get_default_pose_landmarks_style(),
+                )
+            except Exception:
+                pass
+            row = row_from_landmarks(landmarks)
 
             try:
                 if exercise == "squat":
                     f = squat_features(row)
                     stage = "UP" if f["avg_knee_angle"] >= 100 else "DOWN"
+                    # simple error checks
+                    err = []
+                    if f["feet_shoulder_ratio"] < 0.5:
+                        err.append("feet too narrow")
+                    elif f["feet_shoulder_ratio"] > 1.5:
+                        err.append("feet too wide")
+                    if f["knee_feet_ratio"] < 0.5:
+                        err.append("knees too close")
+                    elif f["knee_feet_ratio"] > 1.2:
+                        err.append("knees too far")
                     feedback = f"Squat: {stage} | Knee: {f['avg_knee_angle']:.0f}°"
+                    if err:
+                        feedback += " | " + ",".join(err)
                 elif exercise == "lunge":
                     f = lunge_features(row)
+                    err = []
+                    # knee over toe positive means knee ahead of ankle
+                    if f["left_knee_over_toe"] > 0.05 or f["right_knee_over_toe"] > 0.05:
+                        err.append("knee over toe")
                     feedback = f"Lunge | Bent: {f['bent_angle']:.0f}°"
+                    if err:
+                        feedback += " | " + ",".join(err)
                 elif exercise == "bicep_curl":
                     f = bicep_features(row)
+                    err = []
+                    if abs(f['torso_angle']) > 10:
+                        err.append("lean back")
+                    if f['avg_elbow_angle'] < 30:
+                        err.append("peak")
                     feedback = f"Bicep | Elbow: {f['avg_elbow_angle']:.0f}°"
+                    if err:
+                        feedback += " | " + ",".join(err)
                 elif exercise == "plank":
                     f = plank_features(row)
+                    err = []
+                    # hip sag if slope positive, pike if negative large
+                    if f['hip_slope'] > 0.2:
+                        err.append("hip sag")
+                    elif f['hip_slope'] < -0.2:
+                        err.append("pike")
                     feedback = f"Plank | Slope: {f['hip_slope']:.2f}"
+                    if err:
+                        feedback += " | " + ",".join(err)
             except Exception as e:
                 feedback = str(e)[:50]
 
@@ -124,7 +199,10 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-    mp_pose.close()
+    try:
+        landmarker.close()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
